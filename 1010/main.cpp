@@ -1,15 +1,19 @@
 #include "main.h"
 #include "my1010.h"
-
+#include <ctime>
 
 IMPLEMENT_APP(MyApp)
 
 bool MyApp::OnInit()
 {
-    srand(time(NULL));
-    My1010 *tetris = new My1010(wxT("my1010"));
-    tetris->Centre();
-    tetris->Show(true);
+    std::srand(std::time(NULL));
+    game = new My1010(wxT("my1010"));
+    game->Centre();
+    game->Show(true);
 
     return true;
+}
+
+int MyApp::OnExit() {
+	return 0;
 }

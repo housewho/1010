@@ -4,15 +4,12 @@
 
 using namespace std;
 
-void Block::set_block(Colours block)
-{
-
-    pieceblock=block;
+void Block::set_random_colour(Block& target) {
+	int x = std::min(Block_type_num - 1, int((double(std::rand()) / RAND_MAX)*(Block_type_num - 1)) + 1);
+	target.pieceblock = Block_Type(x);
 }
 
-void Block::set_random_colour()
-{
-int x = rand() % 7 + 1;
-set_block(Colours (x));
+void Block::erase_block(Block& target) {
+	target.pieceblock = no_block;
 }
 

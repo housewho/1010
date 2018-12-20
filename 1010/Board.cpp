@@ -6,12 +6,6 @@ Board::Board(wxFrame *parent)
     timer = new wxTimer(this, 1);
 
     m_stsbar = parent->GetStatusBar();
-    isFallingFinished = false;
-    isStarted = false;
-    isPaused = false;
-    numLinesRemoved = 0;
-    curX = 0;
-    curY = 0;
 
     ClearBoard();
 
@@ -20,18 +14,20 @@ Board::Board(wxFrame *parent)
     Connect(wxEVT_TIMER, wxCommandEventHandler(Board::OnTimer));
 }
 
-void Board::Start()
-{
+Board::~Board() {
+	delete timer;
+}
+
+void Board::Start() {
     if (isPaused)
         return;
+	isStarted = true;
+	isFallingFinished = false;
+	numLinesRemoved = 0;
+	ClearBoard();
 
-    isStarted = true;
-    isFallingFinished = false;
-    numLinesRemoved = 0;
-    ClearBoard();
-
-    generate_block();
-    timer->Start(300);
+	generate_block();
+	timer->Start(0);
 }
 
 void Board::Pause()
@@ -53,28 +49,26 @@ void Board::Pause()
 }
 
 
-void Board::OnPaint(wxPaintEvent& event)
-{
+void Board::OnPaint(wxPaintEvent& event) {
     wxPaintDC dc(this);
-
     wxSize size = GetClientSize();
-    int boardTop = size.GetHeight() - BoardHeight * square_height();
-
-
+	const int window_width = size.GetWidth();
+	const int window_height = size.GetHeight();
+	const int block_width = window_width / BoardWidth;
+	const int block_height = window_height / BoardHeight;
     for (int i = 0; i < BoardHeight; ++i) {
         for (int j = 0; j < BoardWidth; ++j) {
-            Colours block = block_at(j, BoardHeight - i - 1);
-            if (block != no_colour)
-                DrawSquare(dc, 0 + j * square_width(),
-                           boardTop + i * square_height(),block);
+            const Block_Type block = board[j] [BoardHeight - i - 1];
+			DrawSquare(dc, j * block_width,
+				i * block_height, block_width, block_height, block);
         }
-    }//there is something down,but i delet
+    }
 
 }
 
 void Board::OnKeyDown(wxKeyEvent& event)
 {
-    if (!isStarted || cur_piece.get_block() == no_colour) {
+    if (!isStarted || cur_piece == no_block) {
         event.Skip();
         return;
     }
@@ -121,7 +115,7 @@ void Board::ClearBoard()
     {
         for (int j=0;j<BoardHeight-1;j++)
         {
-            board[i][j]=no_colour;
+            board[i][j]=no_block;
         }
     }
 }
@@ -148,7 +142,7 @@ void Board::PieceDropped()
 
         int x = curX ;
         int y = curY ;
-       block_at(x, y) = cur_piece.get_block();
+       block_at(x, y) = cur_piece;
 
 
     //RemoveFullLines();
@@ -161,7 +155,7 @@ void Board::generate_block()
 {
     for (int i=0;i<BoardWidth;i++)
     {
-        cur_piece.set_random_colour();
+        Block::set_random_colour(cur_piece);
         board[i][BoardHeight-1]=cur_piece.pieceblock;
     }
 }
@@ -170,7 +164,7 @@ bool Board::try_move(const Block& new_piece,int newX ,int newY)
 {
     if (newX < 0 || newX >= BoardWidth || newY < 0 || newY >= BoardHeight-1)
             return false;
-    if (block_at(newX, newY) != no_colour)
+    if (block_at(newX, newY) != no_block)
             return false;
 
     cur_piece = new_piece;
@@ -180,42 +174,55 @@ bool Board::try_move(const Block& new_piece,int newX ,int newY)
     return true;
 }
 
-void Board::DrawSquare(wxPaintDC& dc, int x, int y, Colours block)
-{
-    static wxColour colors[] = { wxColour(0, 0, 0), wxColour(204, 102, 102),
-             wxColour(102, 204, 102), wxColour(102, 102, 204),
-             wxColour(204, 204, 102), wxColour(204, 102, 204),
-             wxColour(102, 204, 204), wxColour(218, 170, 0) };
 
-    static wxColour light[] = { wxColour(0, 0, 0), wxColour(248, 159, 171),
-             wxColour(121, 252, 121), wxColour(121, 121, 252),
-             wxColour(252, 252, 121), wxColour(252, 121, 252),
-             wxColour(121, 252, 252), wxColour(252, 198, 0) };
+//following draws the given rectangle with a single color fill
+//and lines on the edge.
+//Textures may be applied, and shader code may be used to optimize and add features here
+void Board::DrawSquare(wxPaintDC& dc, int x_pos, int y_pos, const int x_size, const int y_size, Block_Type block) {
 
-    static wxColour dark[] = { wxColour(0, 0, 0), wxColour(128, 59, 59),
-             wxColour(59, 128, 59), wxColour(59, 59, 128),
-             wxColour(128, 128, 59), wxColour(128, 59, 128),
-             wxColour(59, 128, 128), wxColour(128, 98, 0) };
+	//Hard-coded facet colors for each type of square
+    static const wxColour colors[] = {
+		wxColour(0xFF, 0xFF, 0xFF, 0xFF), wxColour(204, 102, 102, 0x00),
+		wxColour(102, 204, 102, 0x00), wxColour(102, 102, 204, 0x00),
+		wxColour(204, 204, 102, 0x00), wxColour(204, 102, 204, 0x00),
+		wxColour(102, 204, 204, 0x00), wxColour(218, 170, 0, 0x00) };
 
+	//Hard-coded line colors for line in the top-left corner 
+    static const wxColour light[] = {
+		wxColour(0xFF, 0xFF, 0xFF, 0xFF), wxColour(248, 159, 171),
+		wxColour(121, 252, 121, 0x00), wxColour(121, 121, 252, 0x00),
+		wxColour(252, 252, 121, 0x00), wxColour(252, 121, 252, 0x00),
+		wxColour(121, 252, 252, 0x00), wxColour(252, 198, 0, 0x00) };
 
+	//Hard-coded line colors for line in the bottom-right corner 
+    static const wxColour dark[] = {
+		wxColour(0xFF, 0xFF, 0xFF, 0xFF), wxColour(128, 59, 59),
+		wxColour(59, 128, 59, 0x00), wxColour(59, 59, 128, 0x00),
+		wxColour(128, 128, 59, 0x00), wxColour(128, 59, 128, 0x00),
+		wxColour(59, 128, 128, 0x00), wxColour(128, 98, 0, 0x00) };
+
+	//Draws the facet
+	dc.SetPen(*wxTRANSPARENT_PEN);
+	dc.SetBrush(wxBrush(colors[int(block)]));
+	dc.DrawRectangle(x_pos, y_pos, x_size, y_size);
+
+	//Draws the top-left corner
     wxPen pen(light[int(block)]);
     pen.SetCap(wxCAP_PROJECTING);
     dc.SetPen(pen);
 
-    dc.DrawLine(x, y + square_height() - 1, x, y);
-    dc.DrawLine(x, y, x + square_width() - 1, y);
+    dc.DrawLine(x_pos, y_pos + y_size - 1, x_pos, y_pos);
+    dc.DrawLine(x_pos, y_pos, x_pos + x_size - 1, y_pos);
 
+	//move the cordinates for easier drawing
+	x_pos += x_size;
+	y_pos += y_size;
+
+	//Draws the bottom-right corner
     wxPen darkpen(dark[int(block)]);
     darkpen.SetCap(wxCAP_PROJECTING);
     dc.SetPen(darkpen);
 
-    dc.DrawLine(x + 1, y + square_height() - 1,
-        x + square_width() - 1, y + square_height() - 1);
-    dc.DrawLine(x + square_width() - 1,
-        y + square_height() - 1, x + square_width() - 1, y + 1);
-
-    dc.SetPen(*wxTRANSPARENT_PEN);
-    dc.SetBrush(wxBrush(colors[int(block)]));
-    dc.DrawRectangle(x + 1, y + 1, square_width() - 2,
-        square_height() - 2);
+	dc.DrawLine(x_pos - 1, y_pos - 1, x_pos - 1, y_pos - y_size + 1);
+	dc.DrawLine(x_pos - x_size + 1, y_pos - 1, x_pos - 1, y_pos - 1);
 }

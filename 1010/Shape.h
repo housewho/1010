@@ -1,18 +1,20 @@
 #ifndef SHAPE_H_INCLUDED
 #define SHAPE_H_INCLUDED
 
-enum Colours {no_colour,red_colour,ora_colour,yel_colour,gre_colour,lblu_colour,dblu_colour,pur_colour};
-class Block
-{
+#define Block_type_num 8
+enum Block_Type { no_block, red, orange, yellow, green, light_blue, dark_blue, purple };
+class Block {
 public :
-    Block(){set_block(no_colour);}
-    void set_block(Colours block);
-    void set_random_colour();
+	Block() { pieceblock = no_block; }
 
-    Colours get_block () const {return pieceblock;}
+    static void set_random_colour(Block& target);
+	static void erase_block(Block& target);
 
+	operator Block_Type() { return pieceblock; }
 
-    Colours pieceblock;
+    Block_Type pieceblock;
+
+	//move operations
 };
 
 #endif // SHAPE_H_INCLUDED

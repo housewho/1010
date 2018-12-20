@@ -4,9 +4,15 @@
 My1010::My1010(const wxString& title)
        : wxFrame(NULL, wxID_ANY, title, wxDefaultPosition, wxSize(360, 1080))
 {
-  wxStatusBar *sb = CreateStatusBar();
+  sb = CreateStatusBar();
   sb->SetStatusText(wxT("0"));
-  Board *board = new Board(this);
+  board = new Board(this);
+  board->set_status_bar(sb);
   board->SetFocus();
   board->Start();
+}
+
+My1010::~My1010() {
+	delete board;
+	Destroy();
 }
