@@ -6,7 +6,7 @@ class Block
 {
 public :
     Block(){set_block(no_colour);}
-    void set_block(Colours block);//…Ë÷√∑ΩøÈ
+    void set_block(Colours block);
     void set_random_colour();
 
     Colours get_block () const {return pieceblock;}
