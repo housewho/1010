@@ -134,13 +134,13 @@
     <ClCompile Include="Board.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="my1010.cpp" />
-    <ClCompile Include="Shape.cpp" />
+    <ClCompile Include="Block.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Board.h" />
     <ClInclude Include="main.h" />
     <ClInclude Include="my1010.h" />
-    <ClInclude Include="Shape.h" />
+    <ClInclude Include="Block.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

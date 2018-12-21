@@ -4,13 +4,13 @@
 
 IMPLEMENT_APP(MyApp)
 
-bool MyApp::OnInit()
-{
+
+bool MyApp::OnInit() {
     std::srand(std::time(NULL));
+	std::rand();
     game = new My1010(wxT("my1010"));
     game->Centre();
     game->Show(true);
-
     return true;
 }
 

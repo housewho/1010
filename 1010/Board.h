@@ -1,9 +1,12 @@
 #ifndef BOARD_H_INCLUDED
 #define BOARD_H_INCLUDED
 
-#include "Shape.h"
 #include <wx/wx.h>
+#include <wx/dcbuffer.h>
+#include "Block.h"
 
+#include <vector>
+#include <array>
 
 class Board : public wxPanel
 {
@@ -19,36 +22,40 @@ protected:
     void OnPaint(wxPaintEvent& event);
     void OnKeyDown(wxKeyEvent& event);
     void OnTimer(wxCommandEvent& event);
+	void OnErase(wxEraseEvent& event) {};
 
 private:
-    enum { BoardWidth = 6, BoardHeight = 21 };
+	int					score{ 0 };
+	static const int	BoardWidth = 6, 
+						BoardHeight = 21;
+	Block board[BoardHeight][BoardWidth];
 
-    Block_Type & block_at(int x,int y){return board [x][y];}
+	wxStatusBar* m_stsbar;
+	wxTimer *timer;
+	bool isStarted{ false };
+	bool isPaused{ false };
+	bool isFinished{ false };
 
-    int square_width(){return GetClientSize().GetWidth() / BoardWidth;}
-    int square_height(){return GetClientSize().GetHeight() / BoardHeight;}
+	struct coords {
+		int x, y;
+	};
 
-    void ClearBoard();
-    void PieceDropped();
-    void DropDown();
-    void OneLineDown();
-    void generate_block();
-    bool try_move(const Block& new_piece,int newX ,int newY);
-    void DrawSquare(wxPaintDC &dc, int x_pos, int y_pos, const int x_size, int const y_size, Block_Type block);
+    void init_board();
+	void generate_line();
 
-    wxTimer *timer;
+	Board& move_left();
+	Board& move_right();
+	Board& drop();
 
-	bool isStarted{false};
-	bool isPaused{false};
-	bool isFallingFinished{false};
-	int curX{0};
-	int curY{0};
-	int numLinesRemoved{0};
+#define MAX_SAME_BLOCK 3
+	Board& erase();
+	void drop_all();
+	void find_set(const coords start, std::vector<coords>& found, std::array<std::array<bool, BoardWidth>, BoardHeight - 1>& buffer);
 
-    Block cur_piece;
-    Block_Type board[BoardWidth][BoardHeight];
-    wxStatusBar* m_stsbar;
-
+	void renderFunc(wxDC& dc);
+	void DrawSquare(wxBufferedDC &dc, int x_pos, int y_pos, const int x_size, int const y_size, Block_Type block);
 };
+
+
 
 #endif // BOARD_H_INCLUDED

@@ -8,7 +8,7 @@ class My1010 : public wxFrame
 public:
     My1010(const wxString& title);
 	~My1010();
-	wxStatusBar* sb;
+
 	Board* board;
 };
 

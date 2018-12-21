@@ -1,17 +1,21 @@
 #include "Board.h"
 
+#include <sstream>
+
 Board::Board(wxFrame *parent)
-       : wxPanel(parent, wxID_ANY, wxDefaultPosition,wxDefaultSize, wxBORDER_NONE)
-{
+       : wxPanel(parent, wxID_ANY, wxDefaultPosition,wxDefaultSize, wxBORDER_NONE) {
     timer = new wxTimer(this, 1);
 
-    m_stsbar = parent->GetStatusBar();
+	m_stsbar = parent->CreateStatusBar();
+	m_stsbar->SetStatusText(wxT("0"));
 
-    ClearBoard();
+    init_board();
 
     Connect(wxEVT_PAINT, wxPaintEventHandler(Board::OnPaint));
     Connect(wxEVT_KEY_DOWN, wxKeyEventHandler(Board::OnKeyDown));
     Connect(wxEVT_TIMER, wxCommandEventHandler(Board::OnTimer));
+	Connect(wxEVT_ERASE_BACKGROUND,wxEraseEventHandler(Board::OnErase));
+	
 }
 
 Board::~Board() {
@@ -22,11 +26,10 @@ void Board::Start() {
     if (isPaused)
         return;
 	isStarted = true;
-	isFallingFinished = false;
-	numLinesRemoved = 0;
-	ClearBoard();
+	score = 0;
+	init_board();
 
-	generate_block();
+	generate_line();
 	timer->Start(0);
 }
 
@@ -34,172 +37,232 @@ void Board::Pause()
 {
     if (!isStarted)
         return;
-
     isPaused = !isPaused;
     if (isPaused) {
         timer->Stop();
         m_stsbar->SetStatusText(wxT("paused"));
     } else {
-        timer->Start(3000);
+        timer->Start();
         wxString str;
-        str.Printf(wxT("%d"), numLinesRemoved);
+        str.Printf(wxT("%d"), score);
         m_stsbar->SetStatusText(str);
     }
     Refresh();
 }
 
+void Board::renderFunc(wxDC& dc) {
+	wxSize size = GetClientSize();
+	const int window_width = size.GetWidth();
+	const int window_height = size.GetHeight();
+	wxBufferedDC bdc(&dc, size);
+	const int block_width = window_width / BoardWidth;
+	const int block_height = window_height / BoardHeight;
+	for (int i = 0; i < BoardHeight; ++i) {
+		for (int j = 0; j < BoardWidth; ++j) {
+			const Block_Type block = board[BoardHeight - i - 1][j];
+			DrawSquare(bdc, j * block_width,
+				i * block_height, block_width, block_height, block);
+		}
+	}
+}
 
 void Board::OnPaint(wxPaintEvent& event) {
     wxPaintDC dc(this);
-    wxSize size = GetClientSize();
-	const int window_width = size.GetWidth();
-	const int window_height = size.GetHeight();
-	const int block_width = window_width / BoardWidth;
-	const int block_height = window_height / BoardHeight;
-    for (int i = 0; i < BoardHeight; ++i) {
-        for (int j = 0; j < BoardWidth; ++j) {
-            const Block_Type block = board[j] [BoardHeight - i - 1];
-			DrawSquare(dc, j * block_width,
-				i * block_height, block_width, block_height, block);
-        }
-    }
-
+	renderFunc(dc);
 }
 
-void Board::OnKeyDown(wxKeyEvent& event)
-{
-    if (!isStarted || cur_piece == no_block) {
+void Board::OnKeyDown(wxKeyEvent& event) {
+    if (!isStarted||isFinished) {
         event.Skip();
         return;
     }
-
     int keycode = event.GetKeyCode();
 
     if (keycode == 'p' || keycode == 'P') {
-	Pause();
+		Pause();
         return;
     }
-
     if (isPaused)
         return;
 
     switch (keycode) {
-    case WXK_LEFT:
-        try_move(cur_piece, curX - 1, curY);
-        break;
-    case WXK_RIGHT:
-        try_move(cur_piece, curX + 1, curY);
-        break;
-    case 'D':case 'd':case WXK_DOWN:
-        OneLineDown();
-        break;
-    default:
-        event.Skip();
+		case 'A':	case 'a':	case WXK_LEFT:
+			move_left();
+			break;
+		case 'D':	case 'd':	case WXK_RIGHT:
+			move_right();
+			break;
+		case 'S':	case 's':	case WXK_DOWN:
+			drop();
+			break;
+		default:
+			event.Skip();
     }
+	Refresh();
+}
+
+void Board::OnTimer(wxCommandEvent& event) {
 
 }
 
-void Board::OnTimer(wxCommandEvent& event)
-{
-    if (isFallingFinished) {
-        isFallingFinished = false;
-        generate_block();
-    } else {
-        OneLineDown();
-    }
+void Board::init_board() {
+	for (int i=0;i<BoardWidth;i++) {
+		for (int j=0;j<BoardHeight;j++) {
+			board[j][i]=no_block;
+		}
+	}
+	Board::generate_line();
 }
 
-void Board::ClearBoard()
-{
-    for (int i=0;i<BoardWidth;i++)
-    {
-        for (int j=0;j<BoardHeight-1;j++)
-        {
-            board[i][j]=no_block;
-        }
-    }
+void Board::generate_line() {
+	for (int i = 0; i < BoardWidth; i++) {
+		board[BoardHeight - 1][i] = Block::random();
+	}
 }
 
-void Board::DropDown()
-{
-    int newY = curY;
-    while (newY > 0) {
-        if (!try_move(cur_piece, curX, newY - 1))
-            {break;}
-        --newY;
-    }
-    PieceDropped();
+//This function is called when the user calls the move_left function
+Board& Board::move_left() {
+	Block temp = board[BoardHeight - 1][0];
+	for (int i = 0; i < BoardWidth - 1; i++) {
+		board[BoardHeight - 1][i] = board[BoardHeight - 1][i + 1];
+	}
+	board[BoardHeight - 1][BoardWidth - 1] = temp;
+	Refresh();
+	return *this;
 }
 
-void Board::OneLineDown()
-{
-    if (!try_move(cur_piece, curX, curY - 1))
-        PieceDropped();
+//This function is called when the user calls the move_left function
+Board& Board::move_right() {
+	Block temp = board[BoardHeight - 1][BoardWidth - 1];
+	for (int i = BoardWidth - 1; i > 0; i--) {
+		board[BoardHeight - 1][i] = board[BoardHeight - 1][i - 1];
+	}
+	board[BoardHeight - 1][0] = temp;
+	Refresh();
+	return *this;
 }
 
-void Board::PieceDropped()
-{
-
-        int x = curX ;
-        int y = curY ;
-       block_at(x, y) = cur_piece;
-
-
-    //RemoveFullLines();
-
-    if (!isFallingFinished)
-        generate_block();
+//This function proceeds the drop command and calculates the results
+//Animated drop may be added here with the timer implemented
+Board& Board::drop() {
+	for (int i = 0; i < BoardWidth; i++) {
+		if (board[BoardHeight-2][i]) {
+			isFinished = true;
+			return *this;
+		}
+	}
+	for (int i = 0; i < BoardWidth; i++) {
+		int j = BoardHeight - 2;
+		while (j >= 0 && !board[j][i]) j--;
+		std::swap(board[BoardHeight - 1][i], board[j + 1][i]);
+	}
+	Refresh();
+	erase();
+	Refresh();
+	generate_line();
+	Refresh();
+	return *this;
 }
 
-void Board::generate_block()
-{
-    for (int i=0;i<BoardWidth;i++)
-    {
-        Block::set_random_colour(cur_piece);
-        board[i][BoardHeight-1]=cur_piece.pieceblock;
-    }
+void Board::find_set(
+	const Board::coords start,
+	std::vector<coords>& found,
+	std::array<std::array<bool, BoardWidth>, BoardHeight - 1>& buffer) {
+	if (start.x > 0
+		&& board[start.x][start.y] == board[start.x - 1][start.y]
+		&& !buffer[start.x - 1][start.y]) {
+		const coords new_coord = { start.x - 1,start.y };
+		buffer[new_coord.x][new_coord.y] = true;
+		found.push_back(new_coord);
+		find_set(new_coord, found, buffer);
+	}
+	if (start.x+1 < BoardHeight-1
+		&& board[start.x][start.y] == board[start.x + 1][start.y] 
+		&& !buffer[start.x + 1][start.y]) {
+		const coords new_coord = { start.x + 1,start.y };
+		buffer[new_coord.x][new_coord.y] = true;
+		found.push_back(new_coord);
+		find_set(new_coord, found, buffer);
+	}
+	if (start.y > 0
+		&& board[start.x][start.y] == board[start.x][start.y - 1]
+		&& !buffer[start.x][start.y - 1]) {
+		const coords new_coord = { start.x, start.y - 1 };
+		buffer[new_coord.x][new_coord.y] = true;
+		found.push_back(new_coord);
+		find_set(new_coord, found, buffer);
+	}
+	if (start.y + 1 < BoardWidth
+		&& board[start.x][start.y] == board[start.x][start.y + 1]
+		&& !buffer[start.x][start.y + 1]) {
+		const coords new_coord = { start.x, start.y + 1 };
+		buffer[new_coord.x][new_coord.y] = true;
+		found.push_back(new_coord);
+		find_set(new_coord, found, buffer);
+	}
 }
 
-bool Board::try_move(const Block& new_piece,int newX ,int newY)
-{
-    if (newX < 0 || newX >= BoardWidth || newY < 0 || newY >= BoardHeight-1)
-            return false;
-    if (block_at(newX, newY) != no_block)
-            return false;
-
-    cur_piece = new_piece;
-    curX = newX;
-    curY = newY;
-    Refresh();
-    return true;
+//This function searches for sections with more than 3 same blocks
+//and then erase them, let other blocks drop, and recurse
+//returns true if erased at lease one set and requires more erase
+//Another animation of erasing and dropping may be added here 
+//with the timer implemented
+Board& Board::erase() {
+	bool erased = false;
+	std::array<std::array<bool, BoardWidth>, BoardHeight - 1> passed{};
+	for (int i = 0; i < BoardHeight - 1; i++) {
+		for (int j = 0; j < BoardWidth; j++) {
+			if (!(passed[i][j])) {
+				passed[i][j] = true;
+				if (board[i][j]) {
+					std::vector<coords> found;
+					found.push_back({ i,j });
+					find_set({ i,j }, found, passed);
+					int size = found.size();
+					if (size >= MAX_SAME_BLOCK) {
+						erased = true;
+						for (int n = 0; n < size; n++) {
+							Block::erase(board[found[n].x][found[n].y]);
+							score++;
+						}
+						std::ostringstream oss;
+						oss << score;
+						m_stsbar->SetStatusText(oss.str());
+					}
+				}
+			}
+		}
+	}
+	if (erased) { 
+		drop_all();
+		erase();
+	}
+	return *this;
 }
 
+//Drops all of the blocks.
+//Can implement some effects here
+void Board::drop_all() {
+	for (int j = 0; j < BoardWidth; j++) {
+		bool changed = true;
+		int start = 0;
+		while (changed) {
+			changed = false;
+			for (int i = start; i < BoardHeight - 1; i++) {
+				if (board[i + 1][j] && !board[i][j]) {
+					changed = true;
+					std::swap(board[i][j], board[i + 1][j]);
+				}
+				if (board[start][j]) start++;
+			}
+		}
+	}
+}
 
 //following draws the given rectangle with a single color fill
 //and lines on the edge.
 //Textures may be applied, and shader code may be used to optimize and add features here
-void Board::DrawSquare(wxPaintDC& dc, int x_pos, int y_pos, const int x_size, const int y_size, Block_Type block) {
-
-	//Hard-coded facet colors for each type of square
-    static const wxColour colors[] = {
-		wxColour(0xFF, 0xFF, 0xFF, 0xFF), wxColour(204, 102, 102, 0x00),
-		wxColour(102, 204, 102, 0x00), wxColour(102, 102, 204, 0x00),
-		wxColour(204, 204, 102, 0x00), wxColour(204, 102, 204, 0x00),
-		wxColour(102, 204, 204, 0x00), wxColour(218, 170, 0, 0x00) };
-
-	//Hard-coded line colors for line in the top-left corner 
-    static const wxColour light[] = {
-		wxColour(0xFF, 0xFF, 0xFF, 0xFF), wxColour(248, 159, 171),
-		wxColour(121, 252, 121, 0x00), wxColour(121, 121, 252, 0x00),
-		wxColour(252, 252, 121, 0x00), wxColour(252, 121, 252, 0x00),
-		wxColour(121, 252, 252, 0x00), wxColour(252, 198, 0, 0x00) };
-
-	//Hard-coded line colors for line in the bottom-right corner 
-    static const wxColour dark[] = {
-		wxColour(0xFF, 0xFF, 0xFF, 0xFF), wxColour(128, 59, 59),
-		wxColour(59, 128, 59, 0x00), wxColour(59, 59, 128, 0x00),
-		wxColour(128, 128, 59, 0x00), wxColour(128, 59, 128, 0x00),
-		wxColour(59, 128, 128, 0x00), wxColour(128, 98, 0, 0x00) };
+void Board::DrawSquare(wxBufferedDC& dc, int x_pos, int y_pos, const int x_size, const int y_size, Block_Type block) {
 
 	//Draws the facet
 	dc.SetPen(*wxTRANSPARENT_PEN);
