@@ -84,7 +84,6 @@ void Board::OnKeyDown(wxKeyEvent& event) {
     }
     if (isPaused)
         return;
-
     switch (keycode) {
 		case 'A':	case 'a':	case WXK_LEFT:
 			move_left();
