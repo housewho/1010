@@ -3,11 +3,14 @@
 
 #include <wx/wx.h>
 
-class MyApp : public wxApp
-{
-  public:
-    virtual bool OnInit();
+#include "my1010.h"
 
+class MyApp : public wxApp {
+	public:
+		virtual bool OnInit() override;
+		virtual int OnExit() override;
+	private:
+		My1010* game;
 };
 
 #endif // MAIN_H_INCLUDED

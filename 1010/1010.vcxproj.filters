@@ -24,7 +24,7 @@
     <ClCompile Include="my1010.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Shape.cpp">
+    <ClCompile Include="Block.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -38,7 +38,7 @@
     <ClInclude Include="my1010.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Shape.h">
+    <ClInclude Include="Block.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
